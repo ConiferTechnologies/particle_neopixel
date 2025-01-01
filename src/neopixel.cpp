@@ -1,5 +1,5 @@
 /*-------------------------------------------------------------------------
-  Particle Core, Particle Photon, P1, Electron, Argon, Boron, Xenon, B SoM, B5 SoM, E SoM X, P2, Photon 2, Tracker and
+  Particle Core, Particle Photon, P1, Electron, Argon, Boron, Xenon, B SoM, M SoM, B5 SoM, E SoM X, P2, Photon 2, Tracker and
   RedBear Duo library to control WS2811/WS2812/WS2813 based RGB LED
   devices such as Adafruit NeoPixel strips.
 
@@ -75,15 +75,15 @@
 #endif // SYSTEM_VERSION < SYSTEM_VERSION_ALPHA(5,0,0,2)
   #define pinLO(_pin) (nrf_gpio_pin_clear(NRF_GPIO_PIN_MAP(PIN_MAP2[_pin].gpio_port, PIN_MAP2[_pin].gpio_pin)))
   #define pinHI(_pin) (nrf_gpio_pin_set(NRF_GPIO_PIN_MAP(PIN_MAP2[_pin].gpio_port, PIN_MAP2[_pin].gpio_pin)))
-#elif (PLATFORM_ID == 32) // HAL_PLATFORM_RTL872X
-  // nothing extra needed for P2
+#elif (PLATFORM_ID == 32 || PLATFORM_ID == 35) // HAL_PLATFORM_RTL872X
+  // nothing extra needed for P2 or M SoM
 #else
   #error "*** PLATFORM_ID not supported by this library. PLATFORM should be Particle Core, Photon, Electron, Argon, Boron, Xenon, RedBear Duo, B SoM, B5 SoM, E SoM X, Tracker or P2 ***"
 #endif
 // fast pin access
 #define pinSet(_pin, _hilo) (_hilo ? pinHI(_pin) : pinLO(_pin))
 
-#if (PLATFORM_ID == 32)
+#if (PLATFORM_ID == 32 || PLATFORM_ID == 35) // HAL_PLATFORM_RTL872X
 Adafruit_NeoPixel::Adafruit_NeoPixel(uint16_t n, SPIClass& spi, uint8_t t) :
   begun(false), type(t), brightness(0), pixels(NULL), endTime(0)
 {
@@ -98,11 +98,11 @@ Adafruit_NeoPixel::Adafruit_NeoPixel(uint16_t n, uint8_t p, uint8_t t) :
   setPin(p);
 }
 
-#endif // #if (PLATFORM_ID == 32)
+#endif // #if (PLATFORM_ID == 32 || PLATFORM_ID == 35)
 
 Adafruit_NeoPixel::~Adafruit_NeoPixel() {
   if (pixels) free(pixels);
-#if (PLATFORM_ID == 32)
+#if (PLATFORM_ID == 32 || PLATFORM_ID == 35)
   spi_->end();
 #else
   if (begun) pinMode(pin, INPUT);
@@ -131,7 +131,9 @@ void Adafruit_NeoPixel::updateLength(uint16_t n) {
 }
 
 void Adafruit_NeoPixel::begin(void) {
-#if (PLATFORM_ID == 32)
+#if (PLATFORM_ID == 32 || PLATFORM_ID == 35)
+// Setup SPI in MOSI mode only. To prevent MISO/SCK from being disturbed, their values
+// are stored and restored after beginning spi. 
   if (getType() == WS2812B) {
     if (spi_->interface() >= HAL_PLATFORM_SPI_NUM) {
       Log.error("SPI/SPI1 interface not defined!");
@@ -172,7 +174,7 @@ void Adafruit_NeoPixel::begin(void) {
 #else
   pinMode(pin, OUTPUT);
   digitalWrite(pin, LOW);
-#endif // #if (PLATFORM_ID == 32)
+#endif // #if (PLATFORM_ID == 32 || PLATFORM_ID == 35)
   begun = true;
 }
 
@@ -191,7 +193,7 @@ void Adafruit_NeoPixel::setPin(uint8_t p) {
 void Adafruit_NeoPixel::show(void) {
   if(!pixels) return;
 
-#if (PLATFORM_ID != 32)
+#if (PLATFORM_ID != 32 && PLATFORM_ID != 35)
   // Data latch = 24 or 50 microsecond pause in the output stream.  Rather than
   // put a delay at the end of the function, the ending time is noted and
   // the function will simply hold off (if needed) on issuing the
@@ -224,7 +226,7 @@ void Adafruit_NeoPixel::show(void) {
   // endTime is a private member (rather than global var) so that multiple
   // instances on different pins can be quickly issued in succession (each
   // instance doesn't delay the next).
-#endif // (PLATFORM_ID != 32)
+#endif // (PLATFORM_ID != 32 && PLATFORM_ID != 35)
 
 #if (PLATFORM_ID == 0) || (PLATFORM_ID == 6) || (PLATFORM_ID == 8) || (PLATFORM_ID == 10) || (PLATFORM_ID == 88) // Core (0), Photon (6), P1 (8), Electron (10) or Redbear Duo (88)
   __disable_irq(); // Need 100% focus on instruction timing
@@ -872,7 +874,7 @@ void Adafruit_NeoPixel::show(void) {
 
   __enable_irq();
 
-#elif (PLATFORM_ID == 32)
+#elif (PLATFORM_ID == 32 || PLATFORM_ID == 35)
   if (getType() != WS2812B) { // WS2812 WS2812B and WS2813 supported for P2
     Log.error("Pixel type not supported!");
     return;
